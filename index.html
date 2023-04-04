@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cars</title>
+    <style>
+        body {
+            margin:0;
+            padding:0;
+            overflow: hidden;
+            width:100%;
+            height:100%;
+        }
+        #ui {
+            width:100%;
+            height:100%;
+            left:0;
+            top:0;
+            position:absolute;
+        }
+        #ui div {
+            width: 20%;
+            height: 100%;
+            background-color: black;
+            float:left;
+            z-index: 2
+        }
+        #ui div:last-child {
+            float: right;
+        }
+        #track {
+            background-image: url("tracks/vw9yh9lnj0t91.png");
+            position: absolute;
+            width:4096px;
+            height:2800px;
+            transform-origin: top left;
+        }
+        #car {
+            background-image: url("cars/Car.png");
+            background-size: cover;
+            width: 128px;
+            height: 128px;
+            position: absolute;
+            left: 50%;
+            top: 70%;
+            z-index: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id=car></div>
+    <div id=track></div>
+    <div id=ui>
+        <div></div>
+        <div></div>
+    </div>
+    <script>
+        const translation = (dx, dy) => [ 1, 0, 0, 1, dx, dy ]
+        const rotation = (cos, sin) => [ cos, sin, -sin, cos, 0, 0 ]
+        const rotationAngle = angle => rotation(Math.cos(angle), Math.sin(angle))
+        const product  = (a,b) => [
+            a[0]*b[0] + a[2]*b[1], 
+            a[1]*b[0] + a[3]*b[1], 
+            
+            a[0]*b[2] + a[2]*b[3], 
+            a[1]*b[2] + a[3]*b[3], 
+            
+            a[0]*b[4] + a[2]*b[5] + a[4], 
+            a[1]*b[4] + a[3]*b[5] + a[5]
+        ]
+        const scale = [ 3.0, 0, 0, 3.0, 0, 0 ]
+        
+        const VehicleAngle = -Math.PI/2
+        const AngleStep = .008, SpeedStep = .0005, BreakStep = -.0002, Friction = .98, speedMax = 0.3
+        const KeyLeft = 37, KeyRight = 39, KeyUp = 38, KeyDown = 40;
+        const StateKeyNone = 0, 
+            StateKeyLeft = 1<<0, StateKeyRight = 1<<1, StateKeyLeftRight = StateKeyLeft | StateKeyRight,
+            StateKeyUp   = 1<<2, StateKeyDown  = 1<<3, StateKeyUpDown = StateKeyUp | StateKeyDown
+            
+        var divTrack = document.querySelector("#track");
+        var divCar   = document.querySelector("#car");
+        
+        var speed = 0
+        var angle = -2.1719
+        var x = 2466, y = 1415
+        var state = StateKeyNone
+        var t0 = performance.now()
+
+        function frame() {
+            // Update
+            let t = performance.now()
+            let dt = t - t0
+
+            t0 = t
+            speed *= Friction;
+            if((state&StateKeyUpDown) && Math.abs(speed) < speedMax) {
+                speed += (state&StateKeyUp ? SpeedStep : BreakStep) * dt
+            }
+            if(state&StateKeyLeftRight) {
+                angle += (state&StateKeyLeft ? -1:1) * AngleStep * dt * speed
+            }
+            let transfoCar = product(
+                translation(x, y),
+                product(
+                    rotationAngle(angle + VehicleAngle),
+                    translation(speed * dt, 0)
+                )
+            )
+            x = transfoCar[4]
+            y = transfoCar[5]
+
+            // Render
+            let transfoTrack = product(
+                translation(
+                    divCar.offsetLeft + divCar.clientWidth /2, 
+                    divCar.offsetTop  + divCar.clientHeight/2), 
+                product(
+                    rotationAngle(-angle), 
+                    product(scale, translation(-x, -y))
+                )
+            );
+            divTrack.style.transform = `matrix(${transfoTrack.join(",")})`;
+            // Next frame
+            window.requestAnimationFrame(frame)
+        };
+        window.addEventListener("keydown", e => {
+            switch(e.keyCode)
+            {
+                case KeyLeft : state |= StateKeyLeft ; break;
+                case KeyRight: state |= StateKeyRight; break;
+                case KeyUp   : state |= StateKeyUp   ; break;
+                case KeyDown : state |= StateKeyDown ; break;                
+            }
+        });
+        window.addEventListener("keyup", e => {
+            switch(e.keyCode)
+            {
+                case KeyLeft : state &= ~StateKeyLeft ; break;
+                case KeyRight: state &= ~StateKeyRight; break;
+                case KeyUp   : state &= ~StateKeyUp   ; break;
+                case KeyDown : state &= ~StateKeyDown ; break;                
+            }
+        });
+        window.requestAnimationFrame(frame);
+    </script>
+</body>
+</html>
