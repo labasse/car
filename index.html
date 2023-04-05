@@ -37,6 +37,14 @@
             height:2800px;
             transform-origin: top left;
         }
+        #ghost {
+            background-image: url("cars/Audi.png");
+            background-size: cover;
+            width: 128px;
+            height: 128px;
+            position: absolute;
+            z-index: 1;
+        }
         #car {
             background-image: url("cars/Car.png");
             background-size: cover;
@@ -53,6 +61,7 @@
 <body>
 
     <div id=car></div>
+    <div id=ghost></div>
     <div id=track></div>
     <div id=ui>
         <div></div>
@@ -72,8 +81,8 @@
             a[0]*b[4] + a[2]*b[5] + a[4], 
             a[1]*b[4] + a[3]*b[5] + a[5]
         ]
-        const scale = [ 3.0, 0, 0, 3.0, 0, 0 ]
-        
+        const MapScale = 3;
+        const scale = [ MapScale, 0, 0, MapScale, 0, 0 ]
         const VehicleAngle = -Math.PI/2
         const AngleStep = .008, SpeedStep = .0005, BreakStep = -.0002, Friction = .98, speedMax = 0.3
         const KeyLeft = 37, KeyRight = 39, KeyUp = 38, KeyDown = 40;
@@ -83,13 +92,28 @@
             
         var divTrack = document.querySelector("#track");
         var divCar   = document.querySelector("#car");
+        var divGhost = document.querySelector("#ghost");
         
         var speed = 0
         var angle = -2.1719
         var x = 2466, y = 1415
         var state = StateKeyNone
         var t0 = performance.now()
+        var ghost = []
 
+        function spawn(div, pos, trackTransform) {
+            let transfo = product(
+                translation(-div.offsetWidth/2, -div.offsetHeight/2),
+                product(
+                    trackTransform,
+                    product(
+                        translation(pos.x, pos.y),        
+                        product([1/MapScale, 0, 0, 1/MapScale, 0, 0], rotationAngle(pos.angle))
+                    )
+                )
+            );
+            div.style.transform = `matrix(${transfo.join(",")})`;
+        }
         function frame() {
             // Update
             let t = performance.now()
@@ -112,7 +136,12 @@
             )
             x = transfoCar[4]
             y = transfoCar[5]
-
+            
+            ghost.push({ 'x':x, 'y':y, 'angle':angle })
+            if(ghost.length>20) {
+                ghost.shift();
+            }
+            
             // Render
             let transfoTrack = product(
                 translation(
@@ -124,6 +153,7 @@
                 )
             );
             divTrack.style.transform = `matrix(${transfoTrack.join(",")})`;
+            spawn(divGhost, ghost[0], transfoTrack);
             // Next frame
             window.requestAnimationFrame(frame)
         };
